@@ -487,6 +487,27 @@ def list_to_xml(l, t):
     return s    
 
 @log_exceptions
+def verify_iperf_deployed(session, args):
+    """Verify iperf is installed properly"""
+
+    log.debug("verifying iperf installed properly")
+    vm_ref = validate_exists(args, 'vm_ref')
+    username = validate_exists(args, 'username')
+    password = validate_exists(args, 'password')
+    ip_address = wait_for_ip(session, vm_ref, 'eth0')
+
+    cmd_str = r"iperf -h 2>&1 | grep 'Usage:'"
+    try:
+        val = ssh_command(ip_address, username, password, cmd_str, attepmpts=2)
+    except PluginError as pe:
+        raise PluginError("Failed to execute iperf command from domain %s" % vm_ref)
+
+    if 'Usage' not in val:
+        raise PluginError("Iperf is not installed properly in domain %s" % vm_ref)
+
+    return True
+
+@log_exceptions
 def deploy_iperf(session, args):
     """Install iPerf on a specified VM"""
     log.debug("deploy iperf plugin call")
@@ -512,6 +533,7 @@ def deploy_iperf(session, args):
                 i = i + 1 #Increment counter
                 if i == limit:
                     raise PluginError("Plugin Error: Cannot deploy Iperf")
+        verify_iperf_deployed(session, args)
                 
     log.debug("iPerf installation completed")
     return "OK"
