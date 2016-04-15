@@ -149,6 +149,39 @@ class IperfTest:
                     'device': self.get_device_name(self.server)}
                     )
 
+    def invalidate_routes(self):
+        """Check configured route works correctly."""
+
+        server_dev = self.get_device_name(self.server)
+        client_dev = self.get_device_name(self.client)
+        server_ip = self.get_server_ip(server_dev)
+        client_ip = self.get_client_ip(client_dev)
+        
+        retry = 6
+        while retry > 0:
+            if self.session.xenapi.VM.get_is_control_domain(self.server):
+                if test_connectivity_local(client_ip, server_dev):
+                    break
+            elif test_connectivity(server_ip, client_ip, server_dev):
+                break
+            retry -= 1
+        else:
+            raise Exception("Failed to setup route between %s(%s) and %s." % \
+                    (self.server, server_dev, self.client))
+
+        retry = 6
+        while retry > 0:
+            if self.session.xenapi.VM.get_is_control_domain(self.client):
+                if test_connectivity_local(server_ip, client_dev):
+                    break
+            elif test_connectivity(client_ip, server_ip, client_dev):
+                break
+            retry -= 1
+        else:
+            raise Exception("Failed to setup route between %s(%s) and %s." % \
+                    (self.client, client_dev, self.server))
+
+
     def run(self):
         """This classes run test function"""
         self.deploy_iperf()
@@ -160,6 +193,7 @@ class IperfTest:
 
         # Configure routes
         self.configure_routes()
+        self.invalidate_routes()
 
         # Capture interface statistics pre test run
         self.record_stats()
@@ -229,9 +263,8 @@ class IperfTest:
                   
             if len(device_names) > 1:
                 raise Exception("Error: expected only a single device " + \
-                                "name to be found in PIF list ('%s') " + \
-                                "Instead, '%s' were returned." % 
-                                                (pifs, device_names))
+                                "name to be found in PIF list ('%s') " % pifs + \
+                                "Instead, '%s' were returned." % device_names)
             device_name = device_names.pop()
             # For control domains, only deal with bridges
             device_name = device_name.replace('eth','xenbr')

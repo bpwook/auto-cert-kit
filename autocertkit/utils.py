@@ -1172,6 +1172,42 @@ def get_vm_ips(session, vm_ref):
     return res
     
 
+def __check_ping_loss(message):
+    """
+    Check and return True if no loss.
+    """
+
+    return ' 0% packet loss' in message
+
+def test_connectivity_local(dst_ip, interface, count=5, username="root",
+        password=DEFAULT_PASSWORD):
+    """
+    Check connectivity using ping from dom0
+    """
+
+    cmd = ["ping", "-I", interface, "-c", str(count), dst_ip]
+    log.debug("Ping: %s" % cmd)
+    result = make_local_call(cmd)
+    log.debug("Results=%s" % result)
+
+    return __check_ping_loss(result)
+
+    
+def test_connectivity(vm_ip, dst_ip, interface, count=5, username="root",
+        password=DEFAULT_PASSWORD):
+    """
+    Check connectivity from VM using ping via SSH.
+    """
+
+    cmd_str = "ping -I %s -c %d %s" % (interface, count, dst_ip)
+
+    log.debug("Ping: %s" % cmd_str)
+    result = ssh_command(vm_ip, username, password, cmd_str, attempts=10)
+    log.debug("Results= %s" % result)
+
+    return __check_ping_loss(result)
+
+
 def ping(vm_ip, dst_vm_ip, interface, packet_size=1400,
          count=20, username="root", password=DEFAULT_PASSWORD):
     """Function for executing ping instruction via SSH to vm_ip.
@@ -2303,7 +2339,7 @@ def check_vm_ping_response(session, vm_ref, interface='eth0', count=3, timeout=3
         response = str(stdout).strip()
         
         # Check for no packet loss. Note the space before '0%', this is required.
-        if " 0% packet loss" in response:
+        if __check_ping_loss(response):
             log.debug("Ping response received from %s" % vm_ip)
             return response
     
