@@ -558,10 +558,17 @@ def get_pool_master(session):
     host_ref = session.xenapi.pool.get_master(pool_ref)
     return host_ref
 
+def is_control_domain(session, vm_ref):
+    """Returns whether given vm is contol domain and dom0"""
+    return session.xenapi.VM.get_is_control_domain(vm_ref) and \
+            session.xenapi.VM.get_domid(vm_ref) == 0
+
 def _find_control_domain(session, host_ref):
     vm_recs = session.xenapi.VM.get_all_records()
     for vm_ref, vm_rec in vm_recs.iteritems():
-        if vm_rec['is_control_domain'] and vm_rec['resident_on'] == host_ref:
+        if vm_rec['is_control_domain'] and \
+                vm_rec['resident_on'] == host_ref and \
+                vm_rec['domid'] == 0:
             return vm_ref
     raise Exception("Unexpected error. Cannot find control domain on host %s" % host_ref)
 
@@ -1062,7 +1069,7 @@ def should_timeout(start, timeout):
 
 def _get_control_domain_ip(session, vm_ref, device='xenbr0'):
     """Return the IP address for a specified control domain"""
-    if not session.xenapi.VM.get_is_control_domain(vm_ref):
+    if not is_control_domain(session, vm_ref):
         raise Exception("Specified VM is not a control domain")
 
     host_ref = session.xenapi.VM.get_resident_on(vm_ref)
@@ -1084,7 +1091,7 @@ def wait_for_ip(session, vm_ref, device, timeout=300):
         log.debug("Static IP %s found for VM %s" % (xs_data[key], vm_ref))
         return xs_data[key]
 
-    if session.xenapi.VM.get_is_control_domain(vm_ref):
+    if is_control_domain(session, vm_ref):
         ipaddr = _get_control_domain_ip(session, vm_ref, device)
         log.debug("Control domain %s has IP %s on device %s" % (vm_ref, ipaddr, device))
         return ipaddr
@@ -1118,7 +1125,7 @@ def wait_for_all_ips(session, vm_ref, timeout=300):
     """wait for all interface to have IPs"""
 
     ips = {}
-    if session.xenapi.VM.get_is_control_domain(vm_ref):
+    if is_control_domain(session, vm_ref):
         host_ref = session.xenapi.VM.resident_on(vm_ref)
         for pif in session.xenapi.PIF.get_all():
             if host_ref == session.xenapi.PIF.get_host(pif):
@@ -1966,7 +1973,7 @@ def get_dom0_iface_info(session, host_ref, device):
 
 def get_vm_device_mac(session, vm_ref, device):
     """For a specified VM, obtain the MAC address of the specified dev"""
-    if session.xenapi.VM.get_is_control_domain(vm_ref):
+    if is_control_domain(session, vm_ref):
         # Handle Dom0 Case
         log.debug("get_vm_device_mac: VM (%s) device (%s)" % (vm_ref,
                                                               device))

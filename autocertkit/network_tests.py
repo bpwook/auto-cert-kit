@@ -85,7 +85,7 @@ class IperfTest:
         """Check that the specified references are valid,
         and in a configuration that is supported."""
 
-        if self.session.xenapi.VM.get_is_control_domain(self.server):
+        if is_control_domain(self.session, self.server):
             raise Exception("Expecting Dom0 to be the client, not the server")
 
     def record_stats(self):
@@ -184,7 +184,7 @@ class IperfTest:
         if not iface:
             iface = self.get_device_name(self.server)
 
-        if self.session.xenapi.VM.get_is_control_domain(self.server):
+        if is_control_domain(self.session, self.server):
             # Handle Dom0 Case
             host_ref = self.session.xenapi.VM.get_resident_on(self.server)
             ip = self.session.xenapi.host.call_plugin(host_ref,
@@ -218,7 +218,7 @@ class IperfTest:
     def get_device_name(self, vm_ref): 
         vm_host = self.session.xenapi.VM.get_resident_on(vm_ref)
 
-        if self.session.xenapi.VM.get_is_control_domain(vm_ref):
+        if is_control_domain(self.session, vm_ref):
             # Handle the Dom0 case
             pifs = self.session.xenapi.network.get_PIFs(self.network)
             device_names = []
@@ -274,7 +274,7 @@ class IperfTest:
     def configure_vm_ip(self, vm_ref):
         """Make sure that the client has an IP, which may not be the case
         if we are dealing with Dom0 to Dom0 tests."""
-        if self.session.xenapi.VM.get_is_control_domain(vm_ref):
+        if is_control_domain(self.session, vm_ref):
             log.debug("Client VM is Dom0... setup IP on bridge")
             args = {'device': self.get_device_name(vm_ref)}
 
@@ -298,7 +298,7 @@ class IperfTest:
     def run_iperf_server(self):
         """Start the iPerf server listening on a VM"""
         log.debug("Starting IPerf server")
-        if self.session.xenapi.VM.get_is_control_domain(self.server):
+        if is_control_domain(self.session, self.server):
             host_ref = self.session.xenapi.VM.get_resident_on(self.server)
             log.debug("Host ref = %s" % host_ref)
 
@@ -372,7 +372,7 @@ class IperfTest:
     def run_iperf_client(self):
         """Run test iperf command on droid VM"""
         log.debug("Starting IPerf client")
-        if self.session.xenapi.VM.get_is_control_domain(self.client):
+        if is_control_domain(self.session, self.client):
             #Run client via XAPI plugin
             log.debug("Executing iperf test from Dom0 (%s (%s) --> %s (%s))" % \
                 (self.session.xenapi.VM.get_name_label(self.client), 
