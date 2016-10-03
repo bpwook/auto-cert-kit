@@ -225,10 +225,22 @@ class HostMetrics(XenAPIObjectMock):
 class VM(XenAPIObjectMock):
     """VM data structure for XenAPI VM mock"""
 
+    DOM_ID_POOL = 1
+
     def __init__(self, host, isdom0=False):
         super(VM, self).__init__()
         self.__host = host
         self.__controlDomain = isdom0
+        if isdom0:
+            self.__domid = 0
+        else:
+            self.__domid = self.__class__.getDomainID(cls)
+
+    @classmethod
+    def genDomainID(cls)
+        domid = cls.DOM_ID_POOL
+        cls.DOM_ID_POOL += 1
+        return domid
 
     @property
     def record(self):
@@ -242,6 +254,10 @@ class VM(XenAPIObjectMock):
     @property
     def host(self):
         return self.__host
+
+    @property
+    def domid(self):
+        return self.__domid
 
 
 class XenapiMock(mock.Mock):
@@ -409,6 +425,9 @@ class XenapiVMMock(mock.Mock):
 
     def get_is_control_domain(self, opaque):
         return self.__getVM(opaque).isControlDomain
+
+    def get_domid(self, opaque):
+        return self.__getVM(opaque).domid
 
     def get_resident_on(self, opaque):
         return self.__getVM(opaque).host.opaque
